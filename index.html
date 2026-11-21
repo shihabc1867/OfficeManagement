@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Office Management</title>
+<link rel="preconnect" href="https://script.google.com">
+<link rel="dns-prefetch" href="https://script.google.com">
+<link rel="preconnect" href="https://script.googleusercontent.com">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#0f3d5e">
+<style>
+html,body{margin:0;height:100%;background:#0f3d5e;color:#eaf0f7;font-family:sans-serif}
+iframe{position:fixed;inset:0;width:100%;height:100%;border:0}
+#msg{padding:24px;line-height:1.6}
+#boot{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;transition:opacity .3s;background:#0f3d5e}
+#boot img{width:132px;height:132px;border-radius:28px}
+</style>
+</head>
+<body>
+<div id="msg" hidden></div>
+<div id="boot"><img src="icon-192.png" alt="Office Management" width="132" height="132"></div>
+<iframe id="app" title="Office Management" allow="clipboard-write"></iframe>
+<script>
+/* STEP 1: replace the text below with your Apps Script web app link
+   (the one that ends with /exec). Keep the quote marks. */
+var EXEC_URL = 'PASTE-YOUR-WEB-APP-LINK-HERE/exec';
+
+var frame = document.getElementById('app');
+if (!/^https:\/\/script\.google\.com\/.+\/exec/.test(EXEC_URL)) {
+  frame.hidden = true;
+  var m = document.getElementById('msg');
+  m.hidden = false;
+  m.textContent = 'Open index.html and put your Apps Script /exec link in EXEC_URL.';
+} else {
+  frame.src = EXEC_URL;
+  frame.addEventListener('load', function () {
+    var b = document.getElementById('boot');
+    if (b) { b.style.opacity = '0'; setTimeout(function () { b.remove(); }, 400); }
+  });
+}
+
+/* Chrome offers its own install window through this event. */
+var deferred = null;
+window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferred = e; });
+window.addEventListener('appinstalled', function () { deferred = null; });
+
+/* The app talks to this page by messages:
+   'hi'      -> this page answers 'hello' with its own link (the app learns where it can be installed from)
+   'install' -> Chrome's install window opens; the app is told 'install-ok', or 'install-na' when Chrome gave no window */
+function reply(e, msg) { try { e.source.postMessage(msg, e.origin); } catch (x) { /* the app shows the manual steps */ } }
+window.addEventListener('message', function (e) {
+  var d = e.data;
+  if (!d || (d.om !== 'install' && d.om !== 'hi')) return;
+  var ok = false;
+  try {
+    var h = new URL(e.origin).hostname;
+    ok = /(^|\.)googleusercontent\.com$/.test(h) || /(^|\.)google\.com$/.test(h) || e.origin === new URL(EXEC_URL).origin;
+  } catch (x) { ok = false; }
+  if (!ok) return;
+  if (d.om === 'hi') { reply(e, { om: 'hello', url: location.href.split('#')[0].split('?')[0] }); return; }
+  if (!deferred) { reply(e, { om: 'install-na' }); return; }
+  var p = deferred;
+  deferred = null;
+  p.prompt();
+  reply(e, { om: 'install-ok' });
+});
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
+</script>
+</body>
+</html>
